@@ -1,0 +1,10 @@
+{
+  "name": "InstantMsgServer",
+  "version": "0.0.0",
+  "description": "InstantMsgServer",
+  "main": "server.js",
+  "author": {
+    "name": "james.kuang",
+    "email": ""
+  }
+}
