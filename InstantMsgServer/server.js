@@ -140,8 +140,9 @@ function handle_action(req, res) {
                                 if (rows[i]['status'] == USER_UNAPPROVED) { 
                                     stauts = "unApproved";
                                 } else if (rows[i]['authenticateTimeDifference']< TIME_INTERVAL_FOR_USER_STATUS) {
-
+                                    stauts = "online";
                                 }
+                                out+= "<friend  username = '"+rows[i]['username']+ "'  status='"+status+"' IP='" + rows[i]['IP'] + "' userKey = '"+rows[i]['Id']+"'  port='"+ rows[i]['port']+"'/>";
                             }
                             }
                             else {
