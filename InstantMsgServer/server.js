@@ -306,7 +306,9 @@ function handle_action(req, res) {
                             " providerId in(select Id from users where username in (" + friendNamesQueryPart + "));";
                         }
                     }
-
+                    /*
+                     * Here!! 
+                    */
                 });
                 break;
         }
