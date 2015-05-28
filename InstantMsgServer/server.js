@@ -25,9 +25,6 @@ var pool = mysql.createPool({
 
 var isWriteConsole = true;
 
-//var tabelname = 'MyGuest';
-
-
 
 //*****************************
 // Constant group
@@ -145,15 +142,15 @@ function handle_action(req, res) {
                                 for (i = 0; i < rows.length; i++) {
                                     var status = "offline";
                                     if (rows[i]['status'] == USER_UNAPPROVED) { 
-                                        stauts = "unApproved";
+                                        status = "unApproved";
                                     } else if (rows[i]['authenticateTimeDifference']< TIME_INTERVAL_FOR_USER_STATUS) {
-                                        stauts = "online";
+                                        status = "online";
                                     }
-                                    out+= "<friend  username = '"+rows[i]['username']+ "'  status='"+status+"' IP='" + rows[i]['IP'] + "' userKey = '"+rows[i]['Id']+"'  port='"+ rows[i]['port']+"'/>";
+                                    out+= "<friend  username = '"+rows[i]['username']+ "'  status='"+ status+"' IP='" + rows[i]['IP'] + "' userKey = '"+rows[i]['Id']+"'  port='"+ rows[i]['port']+"'/>";
                             }
                             connection.query(sqlmessage, function (err, rowmessage) {
                                 if (!err) {
-                                    for (j = 0; j < rows.length; j++) {
+                                    for (j = 0; j < rowmessage.length; j++) {
                                         out += "<message  from='" + rowmessage[j]['username'] + "'  sendt='" + rowmessage[j]['sentdt'] + "' text='" + rowmessage[j]['messagetext'] + "' />";
                                         var dt = getCurrentDatetime();
                                         var sqlendmsg = "UPDATE `messages` SET `read` = 1, `readdt` = '" + dt + "' WHERE `messages`.`id` = " + rowmessage[j]['id'] + ";";
@@ -231,18 +228,53 @@ function handle_action(req, res) {
                 break;
 
             case "sendMessage":
+                authenticateUser(connection, req, res, function (userId) {
+                    var reqbody = req.body;
+                    if (reqbody['to'] != null) {
+                        var tousername = reqbody['to'];
+                        var message = reqbody['message'];
+                        var querystring = "select Id from  users where username = '" + tousername + "' limit 1";
+                        connection.query(querystring, function (err, rows) {
+                            if (!err) {
+                                var dt = getCurrentDatetime();
+                                var touid = rows[0];
+                                var sql = "insert into ??(??,??,??,??) values(?,?,?,?);";
+                                var table = ["messages", "fromuid", "touid", "sentdt", "messagetext", userId, touid['Id'], dt, message];
+                                sql = mysql.format(sql, table);
+                                connection.query(sql, function (err, row) {
+                                    if (!err) {
+                                        out = SUCCESSFUL;
+                                        var console_msg = build_console_msg(username, action, null);
+                                        send_res(res, out, SUCCESSFUL, console_msg, connection);
+                                    }
+                                    else {
+                                        out = FAILED;
+                                        var console_msg = build_console_msg(username, action, err);
+                                        send_res(res, out, FAILED, console_msg, connection); 
+                                    }
+                                });
+                            }
+                            else {
+                                out = FAILED;
+                                var console_msg = build_console_msg(username, action, err);
+                                send_res(res, out, FAILED, console_msg, connection); 
+                            }
+                        });
+                    }
+                });
                 break;
             case "addNewFriend":
                 authenticateUser(connection, req, res, function (userId) {
-                    if (req['friendUserName'] != null) {
-                        var friendUserName = req['friendUserName'];
+                    var reqbody = req.body;
+                    if (reqbody['friendUserName'] != null) {
+                        var friendUserName = reqbody['friendUserName'];
                         var querystring = "select Id from users where username = '" + friendUserName + "' limit 1 ";
                         connection.query(querystring, function (err, rows) {
                             if (!err) {
                                 var row = rows[0];
                                 var requestId = row['Id'];
                                 if (requestId != userId) {
-                                    var sql = "insert into friends(providerId, requestId, status) values(" + userId + ", " + requestId + ", " + USER_UNAPPROVED + ") ";
+                                    var sql = "insert into friends(providerId, requestId, status) values(" + userId + ", " + requestId + ", " + USER_UNAPPROVED.toString() + ") ";
                                     connection.query(sql, function (err, row) {
                                         if (!err) {
                                             out = SUCCESSFUL;
@@ -276,25 +308,27 @@ function handle_action(req, res) {
                     } 
                 });
                 break;
+
             case "responseOfFriendReqs":
                 authenticateUser(connection, req, res, function (userId) {
                     var Approve = null;
                     var Discard = null;
-                    if (req['approvedFriends'] != null) {
-                        var friendNames = req['approvedFriends'].split(",");
+                    var reqbody = req.body;
+                    if (reqbody['approvedFriends'] != null) {
+                        var friendNames = reqbody['approvedFriends'].split(",");
                         var friendNamesQueryPart = "";
                         for (i = 0; i < friendNames.length; i++) {
                             if (i > 0) friendNamesQueryPart += ",";
                             friendNamesQueryPart+="'"+friendNames[i]+"'";
                         }
                         if (friendNamesQueryPart != "") {
-                            Approve="update friends set status = "+USER_APPROVED+
-                            "where requestId = "+userId+
-                            " and providerId in(select Id from users where username in ("+friendNamesQueryPart+"));";
+                            Approve="update friends set status = "+ USER_APPROVED +
+                            " where requestId = "+userId+
+                            " and providerId in(select Id from users where username in (" + friendNamesQueryPart + "));";
                         }
                     }
-                    if (req['discardedFriends'] != null) {
-                        var friendNames = req['discardedFriends'].split(",");
+                    if (reqbody['discardedFriends'] != null) {
+                        var friendNames = reqbody['discardedFriends'].split(",");
                         var friendNamesQueryPart = "";
                         for (i = 0; i < friendNames.length; i++) {
                             if (i > 0) friendNamesQueryPart += ",";
@@ -306,9 +340,16 @@ function handle_action(req, res) {
                             " providerId in(select Id from users where username in (" + friendNamesQueryPart + "));";
                         }
                     }
-                    /*
-                     * Here!! 
-                    */
+                    if ((Approve != ""?connection.query(Approve):true) && (Discard != ""?connection.query(Discard):true)) {
+                        out = SUCCESSFUL;
+                        var console_msg = build_console_msg(username, action, null);
+                        send_res(res, out, SUCCESSFUL, console_msg, connection);
+                    }
+                    else {
+                        out = FAILED;
+                        var console_msg = build_console_msg(username, action, "query error");
+                        send_res(res, out, FAILED, console_msg, connection);
+                    }
                 });
                 break;
         }
