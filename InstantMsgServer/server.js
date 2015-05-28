@@ -108,8 +108,7 @@ function write_console(sta,str) {
 function getCurrentDatetime() {
     var dt = new Date();
     //"Y-m-d H:i"
-    
-    return dt.getFullYear() + "-" + (dt.getMonth()+1) + "-" + dt.getDate() + " " + dt.getHours() + ":" + dt.getSeconds(); 
+    return dt.getFullYear() + "-" + (dt.getMonth()+1) + "-" + dt.getDate() + " " + dt.getHours() + ":" + dt.getMinutes()+":"+dt.getSeconds(); 
 }
 
 function handle_action(req, res) {
@@ -133,7 +132,6 @@ function handle_action(req, res) {
                         
                         var sqlmessage = "SELECT m.id, m.fromuid, m.touid, m.sentdt, m.read, m.readdt, m.messagetext, u.username from messages m \n"
                          +"left join users u on u.Id = m.fromuid WHERE `touid` = " + userId + " AND `read` = 0 LIMIT 0, 30 ";
-                        var dt = getCurrentDatetime();
                         connection.query(querystring, function (err, rows) {
                             if (!err) {
                                 out = "<data>";
@@ -187,7 +185,6 @@ function handle_action(req, res) {
                         
                         if (!err) {
                             if (rows.length == 0) {
-                                //querystring= "insert into users(username, password, email) values('" + username+ "', '" + password + "', '" + email + "') ";	
                                 querystring = "insert into ??(??,??,??) values(?,?,?)";
                                 var table = ["users", "username", "password", "email", username, md5(password), email];
                                 querystring = mysql.format(querystring, table);
@@ -215,8 +212,6 @@ function handle_action(req, res) {
                             var console_msg = build_console_msg(username, action, err);
                             send_res(res, out, FAILED, console_msg, connection);
                         }
-                        
-
                     });
                 }
                 else {
