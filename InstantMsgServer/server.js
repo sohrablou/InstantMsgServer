@@ -113,6 +113,7 @@ function getCurrentDatetime() {
 
 function handle_action(req, res) {
     var out = FAILED;
+    var outjson = {};
     pool.getConnection(function (err, connection) {
         if (err) {
             connection.release();
@@ -134,8 +135,10 @@ function handle_action(req, res) {
                          +"left join users u on u.Id = m.fromuid WHERE `touid` = " + userId + " AND `read` = 0 LIMIT 0, 30 ";
                         connection.query(querystring, function (err, rows) {
                             if (!err) {
-                                out = "<data>";
-                                out += "<user userKey='" + userId + "' />";
+                                //out = "<data>";
+                                //out += "<user userKey='" + userId + "' />";
+                                outjson.user = {'userKey': userId};
+                                outjson.friend = [];
                                 //while(rows)
                                 for (i = 0; i < rows.length; i++) {
                                     var status = "offline";
@@ -144,17 +147,33 @@ function handle_action(req, res) {
                                     } else if (rows[i]['authenticateTimeDifference']< TIME_INTERVAL_FOR_USER_STATUS) {
                                         status = "online";
                                     }
-                                    out+= "<friend  username = '"+rows[i]['username']+ "'  status='"+ status+"' IP='" + rows[i]['IP'] + "' userKey = '"+rows[i]['Id']+"'  port='"+ rows[i]['port']+"'/>";
+                                //out += "<friend  username = '" + rows[i]['username'] + "'  status='" + status + "' IP='" + rows[i]['IP'] + "' userKey = '" + rows[i]['Id'] + "'  port='" + rows[i]['port'] + "'/>";
+                                var friend = {
+                                    'username': rows[i]['username'],
+                                    'status': status,
+                                    'IP': rows[i]['IP'],
+                                    'userKey': rows[i]['Id'],
+                                    'port' : rows[i]['port']
+                                };
+                                outjson.friend.push(friend);
                             }
                             connection.query(sqlmessage, function (err, rowmessage) {
                                 if (!err) {
+                                    outjson.message = [];
                                     for (j = 0; j < rowmessage.length; j++) {
-                                        out += "<message  from='" + rowmessage[j]['username'] + "'  sendt='" + rowmessage[j]['sentdt'] + "' text='" + rowmessage[j]['messagetext'] + "' />";
+                                        //out += "<message  from='" + rowmessage[j]['username'] + "'  sendt='" + rowmessage[j]['sentdt'] + "' text='" + rowmessage[j]['messagetext'] + "' />";
+                                        var message = {
+                                            'from' : rowmessage[j]['username'],
+                                            'sendt' : rowmessage[j]['sentdt'],
+                                            'text' : rowmessage[j]['messagetext']
+                                        }
+                                        outjson.message.push(message);
                                         var dt = getCurrentDatetime();
                                         var sqlendmsg = "UPDATE `messages` SET `read` = 1, `readdt` = '" + dt + "' WHERE `messages`.`id` = " + rowmessage[j]['id'] + ";";
                                         connection.query(sqlendmsg);
                                     }
-                                    out += "</data>";
+                                    //out += "</data>";
+                                    out=outjson;
                                     var console_msg = build_console_msg(username, action, null);
                                     send_res(res, out, SUCCESSFUL, console_msg, connection);
                                 }
@@ -370,8 +389,24 @@ function build_console_msg(user, action, err_msg) {
 
 }
 
-function send_res(res,out, sta, console_msg, connection) {
-    res.send(out.toString());
+function canJSON(value) {
+    try {
+        JSON.stringify(value);
+        return true;
+    } catch (ex) {
+        return false;
+    }
+}
+
+
+function send_res(res, out, sta, console_msg, connection) {
+    if (canJSON(out)) {
+        res.setHeader('Content-Type', 'application/json');
+        res.send(JSON.stringify(out));
+    }
+    else {
+        res.send(out.toString());
+    }
     write_console(sta, console_msg);
     if(connection!=null)
         connection.release();
