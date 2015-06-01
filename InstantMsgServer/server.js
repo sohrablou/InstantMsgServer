@@ -6,6 +6,7 @@ http.createServer(function (req, res) {
 }).listen(port);*/
 
 var express = require('express');
+var env= require('./environment.js');
 var mysql = require('mysql');
 var app = express();
 var bodyParser = require('body-parser');
@@ -107,7 +108,6 @@ function write_console(sta,str) {
  **/
 function getCurrentDatetime() {
     var dt = new Date();
-    //"Y-m-d H:i"
     return dt.getFullYear() + "-" + (dt.getMonth()+1) + "-" + dt.getDate() + " " + dt.getHours() + ":" + dt.getMinutes()+":"+dt.getSeconds(); 
 }
 
@@ -131,15 +131,12 @@ function handle_action(req, res) {
                         + "from friends f left join users u on u.Id = if (f.providerId = " + userId + ", f.requestId, f.providerId) "
                         + "where(f.providerId = " + userId +" and f.status = " + USER_APPROVED + ")  or f.requestId = "+ userId +" ";
                         
-                        var sqlmessage = "SELECT m.id, m.fromuid, m.touid, m.sentdt, m.read, m.readdt, m.messagetext, u.username from messages m \n"
+                        var querymsg = "SELECT m.id, m.fromuid, m.touid, m.sentdt, m.read, m.readdt, m.content, m.type, u.username from messages m \n"
                          +"left join users u on u.Id = m.fromuid WHERE `touid` = " + userId + " AND `read` = 0 LIMIT 0, 30 ";
                         connection.query(querystring, function (err, rows) {
                             if (!err) {
-                                //out = "<data>";
-                                //out += "<user userKey='" + userId + "' />";
                                 outjson.user = {'userKey': userId};
                                 outjson.friend = [];
-                                //while(rows)
                                 for (i = 0; i < rows.length; i++) {
                                     var status = "offline";
                                     if (rows[i]['status'] == USER_UNAPPROVED) { 
@@ -147,7 +144,6 @@ function handle_action(req, res) {
                                     } else if (rows[i]['authenticateTimeDifference']< TIME_INTERVAL_FOR_USER_STATUS) {
                                         status = "online";
                                     }
-                                //out += "<friend  username = '" + rows[i]['username'] + "'  status='" + status + "' IP='" + rows[i]['IP'] + "' userKey = '" + rows[i]['Id'] + "'  port='" + rows[i]['port'] + "'/>";
                                 var friend = {
                                     'username': rows[i]['username'],
                                     'status': status,
@@ -157,22 +153,21 @@ function handle_action(req, res) {
                                 };
                                 outjson.friend.push(friend);
                             }
-                            connection.query(sqlmessage, function (err, rowmessage) {
+                            connection.query(querymsg, function (err, rowmessage) {
                                 if (!err) {
                                     outjson.message = [];
                                     for (j = 0; j < rowmessage.length; j++) {
-                                        //out += "<message  from='" + rowmessage[j]['username'] + "'  sendt='" + rowmessage[j]['sentdt'] + "' text='" + rowmessage[j]['messagetext'] + "' />";
                                         var message = {
                                             'from' : rowmessage[j]['username'],
                                             'sendt' : rowmessage[j]['sentdt'],
-                                            'text' : rowmessage[j]['messagetext']
+                                            'content' : rowmessage[j]['content'],
+                                            'type': rowmessage[j]['type']
                                         }
                                         outjson.message.push(message);
                                         var dt = getCurrentDatetime();
                                         var sqlendmsg = "UPDATE `messages` SET `read` = 1, `readdt` = '" + dt + "' WHERE `messages`.`id` = " + rowmessage[j]['id'] + ";";
                                         connection.query(sqlendmsg);
                                     }
-                                    //out += "</data>";
                                     out=outjson;
                                     var console_msg = build_console_msg(username, action, null);
                                     send_res(res, out, SUCCESSFUL, console_msg, connection);
@@ -253,7 +248,7 @@ function handle_action(req, res) {
                                 var dt = getCurrentDatetime();
                                 var touid = rows[0];
                                 var sql = "insert into ??(??,??,??,??) values(?,?,?,?);";
-                                var table = ["messages", "fromuid", "touid", "sentdt", "messagetext", userId, touid['Id'], dt, message];
+                                var table = ["messages", "fromuid", "touid", "sentdt", "content", userId, touid['Id'], dt, message];
                                 sql = mysql.format(sql, table);
                                 connection.query(sql, function (err, row) {
                                     if (!err) {
@@ -451,6 +446,23 @@ function authenticateUser(connection,req, res,callback) {
 }
 
 
-write_console(-1,"Server is listening at port " + 9986);
-//console.log("Server is listening at port " + 9986);
-app.listen(9986);
+
+app.listen(9986, function () {
+    var querystring = "select * from sysparam where attribute = 'IMAGEPATH' limit 1";
+    pool.query(querystring, function (err, rows) {
+        if (!err) {
+            env.PARAMETERS.IMAGEPATH=rows[0]['value'];
+        }
+        else {
+        } 
+    })
+    querystring = "select * from sysparam where attribute = 'AUDIOPATH' limit 1";
+    pool.query(querystring, function (err, rows) {
+        if (!err) {
+            env.PARAMETERS.AUDIOPATH = rows[0]['value'];
+        }
+        else {
+        }
+    })
+    write_console(-1, "Server is listening at port " + 9986);
+});
