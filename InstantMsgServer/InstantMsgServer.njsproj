@@ -30,8 +30,12 @@
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="datadownload.js" />
+    <Compile Include="dataupload.js" />
     <Compile Include="environment.js" />
     <Compile Include="server.js" />
+    <Compile Include="uploadfile.js" />
+    <Content Include="mysql.sql" />
     <Content Include="package.json" />
     <Content Include="README.md" />
   </ItemGroup>

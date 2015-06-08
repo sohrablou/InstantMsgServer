@@ -241,14 +241,15 @@ function handle_action(req, res) {
                     var reqbody = req.body;
                     if (reqbody['to'] != null) {
                         var tousername = reqbody['to'];
-                        var message = reqbody['message'];
+                        var message = reqbody['content'];
+                        var type = reqbody['type'];
                         var querystring = "select Id from  users where username = '" + tousername + "' limit 1";
                         connection.query(querystring, function (err, rows) {
                             if (!err) {
                                 var dt = getCurrentDatetime();
                                 var touid = rows[0];
-                                var sql = "insert into ??(??,??,??,??) values(?,?,?,?);";
-                                var table = ["messages", "fromuid", "touid", "sentdt", "content", userId, touid['Id'], dt, message];
+                                var sql = "insert into ??(??,??,??,??,??) values(?,?,?,?,?);";
+                                var table = ["messages", "fromuid", "touid", "sentdt", "content", "type", userId, touid['Id'], dt, message,type];
                                 sql = mysql.format(sql, table);
                                 connection.query(sql, function (err, row) {
                                     if (!err) {
