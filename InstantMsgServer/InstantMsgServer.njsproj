@@ -32,6 +32,7 @@
   <ItemGroup>
     <Compile Include="environment.js" />
     <Compile Include="server.js" />
+    <Content Include="mysql.sql" />
     <Content Include="package.json" />
     <Content Include="README.md" />
   </ItemGroup>
