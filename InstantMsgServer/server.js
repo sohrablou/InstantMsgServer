@@ -127,7 +127,7 @@ function handle_action(req, res) {
             case "authenticateUser":
                 authenticateUser(connection, req, res,function (userId) {
                         var querystring = "select u.Id, u.username, (NOW()-u.authenticationTime) "
-                        + "as authenticateTimeDifference, u.IP, f.providerId, f.requestId, f.status, u.port "
+                        + "as authenticateTimeDifference, u.IP, f.providerId, f.requestId, f.status " //u.port 
                         + "from friends f left join users u on u.Id = if (f.providerId = " + userId + ", f.requestId, f.providerId) "
                         + "where(f.providerId = " + userId +" and f.status = " + USER_APPROVED + ")  or f.requestId = "+ userId +" ";
                         
@@ -149,7 +149,7 @@ function handle_action(req, res) {
                                     'status': status,
                                     'IP': rows[i]['IP'],
                                     'userKey': rows[i]['Id'],
-                                    'port' : rows[i]['port']
+                                    //'port' : rows[i]['port']
                                 };
                                 outjson.friend.push(friend);
                             }
@@ -422,7 +422,7 @@ function authenticateUser(connection,req, res,callback) {
         if (!err) {
             id = rows[0]['Id'];
             if (id > 0) {
-                querystring = "update users set authenticationTime = NOW(), IP = '" + req.connection.remoteAddress + "' , port = 15145 where Id = " + rows[0]['Id'] + " limit 1 ";
+                querystring = "update users set authenticationTime = NOW(), IP = '" + req.connection.remoteAddress + "' where Id = " + rows[0]['Id'] + " limit 1 ";//, port = 15145
                 connection.query(querystring, function (err, rows) {
                     if (!err) {
                         write_console(SUCCESSFUL, "User :" + username + " Logged in.");
